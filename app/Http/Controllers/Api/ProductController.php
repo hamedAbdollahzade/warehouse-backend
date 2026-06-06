@@ -94,4 +94,74 @@ class ProductController extends Controller
             'message' => 'Product deleted successfully.',
         ]);
     }
+
+    public function lowStock()
+    {
+        $products = Product::all()->filter(function ($product) {
+            return $product->current_stock <= $product->min_stock;
+        })->values();
+
+        return response()->json($products);
+    }
+
+    public function summary()
+    {
+        $products = Product::all();
+
+        $totalProducts = $products->count();
+
+        $totalStock = $products->sum(function ($product) {
+            return $product->current_stock;
+        });
+
+        $lowStock = $products->filter(function ($product) {
+            return $product->current_stock <= $product->min_stock && $product->current_stock > 0;
+        })->count();
+
+        $outOfStock = $products->filter(function ($product) {
+            return $product->current_stock == 0;
+        })->count();
+
+        return response()->json([
+            'total_products' => $totalProducts,
+            'total_stock' => $totalStock,
+            'low_stock' => $lowStock,
+            'out_of_stock' => $outOfStock,
+        ]);
+    }
+
+
+
+    public function kardex(Product $product)
+    {
+        $movements = $product->stockMovements()
+            ->orderBy('created_at')
+            ->get();
+
+        $balance = 0;
+
+        $kardex = $movements->map(function ($m) use (&$balance) {
+
+            $change = $m->type === 'IN'
+                ? $m->quantity
+                : -$m->quantity;
+
+            $balance += $change;
+
+            return [
+                'id' => $m->id,
+                'date' => $m->created_at,
+                'type' => $m->type,
+                'quantity' => $m->quantity,
+                'change' => $change,
+                'balance' => $balance,
+                'note' => $m->note,
+            ];
+        });
+
+        return response()->json($kardex);
+    }
+
+
+
 }

@@ -17,4 +17,29 @@ class Product extends Model
         'min_stock',
         'created_by',
     ];
+
+    protected $appends = ['current_stock'];
+
+    public function stockMovements()
+    {
+        return $this->hasMany(\App\Models\StockMovement::class);
+    }
+
+    public function currentStock()
+    {
+        $in = $this->stockMovements()
+            ->where('type', 'IN')
+            ->sum('quantity');
+
+        $out = $this->stockMovements()
+            ->where('type', 'OUT')
+            ->sum('quantity');
+
+        return $in - $out;
+    }
+
+    public function getCurrentStockAttribute()
+    {
+        return $this->currentStock();
+    }
 }
