@@ -18,19 +18,37 @@ class Product extends Model
         'created_by',
     ];
 
-    protected $appends = ['current_stock'];
+    // این باعث می‌شود current_stock در API خروجی هم نمایش داده شود
+    protected $appends = ['current_stock', 'has_opening'];
 
+    /*
+    Relation
+
+    هر محصول چندین stock movement دارد
+    */
     public function stockMovements()
     {
         return $this->hasMany(\App\Models\StockMovement::class);
     }
 
+    /*
+    محاسبه موجودی فعلی
+
+    موجودی = مجموع ورودها - مجموع خروج‌ها
+    */
     public function currentStock()
     {
+
+        /*
+        OPENING و IN هر دو موجودی را زیاد می‌کنند
+        */
         $in = $this->stockMovements()
-            ->where('type', 'IN')
+            ->whereIn('type', ['OPENING', 'IN'])
             ->sum('quantity');
 
+        /*
+        OUT موجودی را کم می‌کند
+        */
         $out = $this->stockMovements()
             ->where('type', 'OUT')
             ->sum('quantity');
@@ -38,8 +56,22 @@ class Product extends Model
         return $in - $out;
     }
 
+    /*
+    این accessor باعث می‌شود بتوانیم بنویسیم:
+
+    $product->current_stock
+    */
     public function getCurrentStockAttribute()
     {
         return $this->currentStock();
     }
+
+    public function getHasOpeningAttribute()
+    {
+        return $this->stockMovements()
+            ->where('type', 'OPENING')
+            ->exists();
+    }
+
+
 }

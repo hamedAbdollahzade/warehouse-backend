@@ -132,35 +132,38 @@ class ProductController extends Controller
 
 
 
-    public function kardex(Product $product)
-    {
-        $movements = $product->stockMovements()
-            ->orderBy('created_at')
-            ->get();
+  public function kardex(Product $product)
+  {
+      $movements = $product->stockMovements()
+          ->orderBy('created_at')
+          ->get();
 
-        $balance = 0;
+      $balance = 0;
 
-        $kardex = $movements->map(function ($m) use (&$balance) {
+      $kardex = $movements->map(function ($m) use (&$balance) {
 
-            $change = $m->type === 'IN'
-                ? $m->quantity
-                : -$m->quantity;
+          $change = match ($m->type) {
+              'OPENING', 'IN' => $m->quantity,
+              'OUT' => -$m->quantity,
+              default => 0
+          };
 
-            $balance += $change;
+          $balance += $change;
 
-            return [
-                'id' => $m->id,
-                'date' => $m->created_at,
-                'type' => $m->type,
-                'quantity' => $m->quantity,
-                'change' => $change,
-                'balance' => $balance,
-                'note' => $m->note,
-            ];
-        });
+          return [
+              'id' => $m->id,
+              'date' => $m->created_at,
+              'type' => $m->type,
+              'quantity' => $m->quantity,
+              'change' => $change,
+              'balance' => $balance,
+              'note' => $m->note,
+          ];
+      });
 
-        return response()->json($kardex);
-    }
+      return response()->json($kardex);
+  }
+
 
 
 
